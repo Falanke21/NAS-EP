@@ -202,7 +202,7 @@ c       vectorizable.
     i = 0;
     for (; i < upper_bound; i += stride) {
         __m256d x1_reg = {x[2*i], x[2*(i+1)], x[2*(i+2)], x[2*(i+3)]};
-        __m256d x2_reg = {x[2*(i+1)], x[2*((i+1)+1)], x[2*((i+2)+1)], x[2*((i+3)+1)]};
+        __m256d x2_reg = {x[2*i+1], x[2*(i+1)+1], x[2*(i+2)+1], x[2*(i+3)+1]};
         __m256d vec_x1 = 2.0 * x1_reg - 1.0;
         __m256d vec_x2 = 2.0 * x2_reg - 1.0;
         __m256d vec_t1 = _mm256_add_pd(vec_x1 * vec_x1, vec_x2 * vec_x2);
