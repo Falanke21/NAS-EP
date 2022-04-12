@@ -231,17 +231,21 @@ c       vectorizable.
             // Option 2:
             // Gather statement and custom absolute intrinsic
             // Get index l
-            __m256i vec_l = _mm256_castpd_si256(_mm256_max_pd(__mm256_abs_pd(vec_t3), __mm256_abs_pd(vec_t4)));
-            __m256d vec_qq = _mm256_i64gather_pd(qq, vec_l, 1);
+            __m256d vec_l = _mm256_max_pd(__mm256_abs_pd(vec_t3), __mm256_abs_pd(vec_t4));
+            __m256d vec_qq = _mm256_i64gather_pd(qq, _mm256_castpd_si256(vec_l), 1);
             // Can't use scatter because it's AVX512
             // Scalarize the load
-            qq[vec_l[0]] = vec_qq[0] + 1.0;
-            qq[vec_l[1]] = vec_qq[1] + 1.0;
-            qq[vec_l[2]] = vec_qq[2] + 1.0;
-            qq[vec_l[3]] = vec_qq[3] + 1.0;
+            double l_array[4];
+            _mm256_store_pd(l_array, vec_l);
+            qq[(int)l_array[0]] = vec_qq[0] + 1.0;
+            qq[(int)l_array[1]] = vec_qq[1] + 1.0;
+            qq[(int)l_array[2]] = vec_qq[2] + 1.0;
+            qq[(int)l_array[3]] = vec_qq[3] + 1.0;
             
-            _mm256_store_pd(&sx, _mm256_load_pd(&sx) + vec_t3);
-            _mm256_store_pd(&sy, _mm256_load_pd(&sy) + vec_t4);
+            for (int j = 0; j < 4; j++) {
+                sx = sx + vec_t3[j];
+                sy = sy + vec_t4[j];
+            }
         } else if (!(vec_t1[0] <= 1.0) && !(vec_t1[1] <= 1.0) && !(vec_t1[2] <= 1.0) && !(vec_t1[3] <= 1.0))
         {}
         else 
