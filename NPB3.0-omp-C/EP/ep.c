@@ -50,7 +50,6 @@
 /* global variables */
 /* common /storage/ */
 static double x[2*NK];
-#pragma omp threadprivate(x)
 static double q[NQ];
 
 /*--------------------------------------------------------------------
@@ -107,8 +106,7 @@ c   sure these initializations cannot be eliminated as dead code.
 */
     vranlc(0, &(dum[0]), dum[1], &(dum[2]));
     dum[0] = randlc(&(dum[1]), dum[2]);
-    
-#pragma omp parallel for default(shared) private(i)
+
     for (i = 0; i < 2*NK; i++) x[i] = -1.0e99;
     
     Mops = log(sqrt(fabs(max(1.0, 1.0))));
@@ -145,7 +143,6 @@ c   have more numbers to generate than others
 */
     k_offset = -1;
 
-#pragma omp parallel copyin(x)
 {
     double t1, t2, t3, t4, x1, x2;
     int kk, i, ik, l;
@@ -153,7 +150,6 @@ c   have more numbers to generate than others
 
     for (i = 0; i < NQ; i++) qq[i] = 0.0;
 
-#pragma omp for reduction(+:sx,sy) schedule(static)  
     for (k = 1; k <= np; k++) {
 	kk = k_offset + k;
 	t1 = S;
@@ -307,12 +303,10 @@ c       vectorizable.
 
 	if (TIMERS_ENABLED == TRUE) timer_stop(2);
     }
-#pragma omp critical
     {
       for (i = 0; i <= NQ - 1; i++) q[i] += qq[i];
     }
 #if defined(_OPENMP)
-#pragma omp master
     nthreads = omp_get_num_threads();
 #endif /* _OPENMP */    
 } /* end of parallel region */    
