@@ -202,7 +202,9 @@ c       vectorizable.
         __m256d vec_x1 = 2.0 * x1_reg - 1.0;
         __m256d vec_x2 = 2.0 * x2_reg - 1.0;
         __m256d vec_t1 = _mm256_add_pd(vec_x1 * vec_x1, vec_x2 * vec_x2);
-        if (vec_t1[0] <= 1.0 && vec_t1[1] <= 1.0 && vec_t1[2] <= 1.0 && vec_t1[3] <= 1.0) {
+        __m256d cmp = _mm256_cmp_pd(vec_t1, _mm256_set1_pd(1.0), _CMP_LT_OQ);
+        int mask = _mm256_movemask_pd(cmp);
+        if (mask == 255) {    
             // Option 1:
             // Scalarize the log operation
             __m256d vec_log_t1 = {log(vec_t1[0]), log(vec_t1[1]), log(vec_t1[2]), log(vec_t1[3])};
@@ -225,7 +227,7 @@ c       vectorizable.
                 sx = sx + vec_t3[j];
                 sy = sy + vec_t4[j];
             }
-        } else if (!(vec_t1[0] <= 1.0) && !(vec_t1[1] <= 1.0) && !(vec_t1[2] <= 1.0) && !(vec_t1[3] <= 1.0))
+        } else if (mask == 0)
         {}
         else 
         {   // Unroll loop
