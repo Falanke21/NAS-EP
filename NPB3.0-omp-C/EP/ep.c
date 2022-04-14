@@ -214,30 +214,12 @@ c       vectorizable.
             __m256d vec_t3 = vec_x1 * vec_t2;
             __m256d vec_t4 = vec_x2 * vec_t2;
 
-            // Option 1:
             // Scalarize the qq update
-            l = max(fabs(vec_t3[0]), fabs(vec_t4[0]));
-            qq[l] += 1.0;
-            l = max(fabs(vec_t3[1]), fabs(vec_t4[1]));
-            qq[l] += 1.0;
-            l = max(fabs(vec_t3[2]), fabs(vec_t4[2]));
-            qq[l] += 1.0;
-            l = max(fabs(vec_t3[3]), fabs(vec_t4[3]));
-            qq[l] += 1.0;
-            // Option 2:
-            // Gather statement and custom absolute intrinsic
-            // // Get index l
-            // __m256d vec_l = _mm256_max_pd(__mm256_abs_pd(vec_t3), __mm256_abs_pd(vec_t4));
-            // __m256d vec_qq = _mm256_i64gather_pd(qq, _mm256_castpd_si256(vec_l), 1);
-            // Can't use scatter because it's AVX512
-            // Scalarize the load
-            // double l_array[4], qq_array[4];
-            // _mm256_store_pd(l_array, vec_l);
-            // _mm256_store_pd(qq_array, vec_qq);
-            // qq[(int)l_array[0]] = vec_qq[0] + 1.0;
-            // qq[(int)l_array[1]] = vec_qq[1] + 1.0;
-            // qq[(int)l_array[2]] = vec_qq[2] + 1.0;
-            // qq[(int)l_array[3]] = vec_qq[3] + 1.0;
+            __m256d vec_l = _mm256_max_pd(__mm256_abs_pd(vec_t3), __mm256_abs_pd(vec_t4));
+            qq[(int)vec_l[0]] += 1.0;
+            qq[(int)vec_l[1]] += 1.0;
+            qq[(int)vec_l[2]] += 1.0;
+            qq[(int)vec_l[3]] += 1.0;
             
             for (int j = 0; j < 4; j++) {
                 sx = sx + vec_t3[j];
