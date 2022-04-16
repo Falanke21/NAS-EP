@@ -32,9 +32,10 @@
   
 --------------------------------------------------------------------*/
 
+#include <altivec.h>
+
 #include "npb-C.h"
 #include "npbparams.h"
-#include "utils.h"
 
 /* parameters */
 #define	MK		16
@@ -193,39 +194,34 @@ c       vectorizable.
     //         }
 	// }
     // ************* Begin Runtime-check *************
-    int stride = 4;
+    int stride = 2;
     int upper_bound = NK / stride * stride;
     i = 0;
     for (; i < upper_bound; i += stride) {
-        __m256d x1_reg = {x[2*i], x[2*(i+1)], x[2*(i+2)], x[2*(i+3)]};
-        __m256d x2_reg = {x[2*i+1], x[2*(i+1)+1], x[2*(i+2)+1], x[2*(i+3)+1]};
-        __m256d vec_x1 = 2.0 * x1_reg - 1.0;
-        __m256d vec_x2 = 2.0 * x2_reg - 1.0;
-        __m256d vec_t1 = _mm256_add_pd(vec_x1 * vec_x1, vec_x2 * vec_x2);
-        if (vec_t1[0] <= 1.0 && vec_t1[1] <= 1.0 && vec_t1[2] <= 1.0 && vec_t1[3] <= 1.0) {
+        vector double x1_reg = (vector double){x[2*i], x[2*(i+1)]};
+        vector double x2_reg = (vector double){x[2*i+1], x[2*(i+1)+1]};
+        vector double vec_x1 = vec_msub(vec_splats(2.0), x1_reg, vec_splats(1.0));
+        vector double vec_x2 = vec_msub(vec_splats(2.0), x2_reg, vec_splats(1.0));
+        vector double vec_t1 = vec_add(vec_mul(vec_x1, vec_x1), vec_mul(vec_x2, vec_x2));
+        if (vec_t1[0] <= 1.0 && vec_t1[1] <= 1.0) {
             // Option 1:
             // Scalarize the log operation
-            __m256d vec_log_t1 = {log(vec_t1[0]), log(vec_t1[1]), log(vec_t1[2]), log(vec_t1[3])};
-            __m256d vec_t2 = _mm256_sqrt_pd(-2.0 * vec_log_t1 / vec_t1);
-            // Option 2:
-            // Custom log intrinsic from utils.h
-            // __m256d vec_t2 = _mm256_sqrt_pd((-2.0 * _mm256_log_pd(vec_t1)) / vec_t1);
+            vector double vec_log_t1 = (vector double){log(vec_t1[0]), log(vec_t1[1])};
+            vector double vec_t2 = vec_sqrt(vec_div(vec_mul(vec_splats(-2.0), vec_log_t1), vec_t1));
 
-            __m256d vec_t3 = vec_x1 * vec_t2;
-            __m256d vec_t4 = vec_x2 * vec_t2;
+            vector double vec_t3 = vec_mul(vec_x1, vec_t2);
+            vector double vec_t4 = vec_mul(vec_x2, vec_t2);
 
             // Scalarize the qq update
-            __m256d vec_l = _mm256_max_pd(__mm256_abs_pd(vec_t3), __mm256_abs_pd(vec_t4));
+            vector double vec_l = vec_max(vec_abs(vec_t3), vec_abs(vec_t4));
             qq[(int)vec_l[0]] += 1.0;
             qq[(int)vec_l[1]] += 1.0;
-            qq[(int)vec_l[2]] += 1.0;
-            qq[(int)vec_l[3]] += 1.0;
 
-            for (int j = 0; j < 4; j++) {
+            for (int j = 0; j < stride; j++) {
                 sx = sx + vec_t3[j];
                 sy = sy + vec_t4[j];
             }
-        } else if (!(vec_t1[0] <= 1.0) && !(vec_t1[1] <= 1.0) && !(vec_t1[2] <= 1.0) && !(vec_t1[3] <= 1.0))
+        } else if (!(vec_t1[0] <= 1.0) && !(vec_t1[1] <= 1.0))
         {}
         else 
         {   // Unroll loop
@@ -242,24 +238,6 @@ c       vectorizable.
                 t2 = sqrt(-2.0 * log(vec_t1[1]) / vec_t1[1]);
                 t3 = (vec_x1[1] * t2);				/* Xi */
                 t4 = (vec_x2[1] * t2);				/* Yi */
-                l = max(fabs(t3), fabs(t4));
-                qq[l] += 1.0;				/* counts */
-                sx = sx + t3;				/* sum of Xi */
-                sy = sy + t4;				/* sum of Yi */
-            }
-            if (vec_t1[2] <= 1.0) {
-                t2 = sqrt(-2.0 * log(vec_t1[2]) / vec_t1[2]);
-                t3 = (vec_x1[2] * t2);				/* Xi */
-                t4 = (vec_x2[2] * t2);				/* Yi */
-                l = max(fabs(t3), fabs(t4));
-                qq[l] += 1.0;				/* counts */
-                sx = sx + t3;				/* sum of Xi */
-                sy = sy + t4;				/* sum of Yi */
-            }
-            if (vec_t1[3] <= 1.0) {
-                t2 = sqrt(-2.0 * log(vec_t1[3]) / vec_t1[3]);
-                t3 = (vec_x1[3] * t2);				/* Xi */
-                t4 = (vec_x2[3] * t2);				/* Yi */
                 l = max(fabs(t3), fabs(t4));
                 qq[l] += 1.0;				/* counts */
                 sx = sx + t3;				/* sum of Xi */
